@@ -1,0 +1,542 @@
+# CGMI Church Plus — Anniversary Quiz App
+
+## PROJECT OVERVIEW
+Build a full-stack church quiz web app for CGMI Church Plus, Benin City.
+Participants scan a QR code, land on the site, answer 20 questions in 
+Typeform style (one question per screen), and results are saved to a 
+Supabase database. There is a password-protected admin dashboard showing 
+a live podium (1st, 2nd, 3rd place), full leaderboard, and a review 
+section showing every participant's answers vs correct answers.
+
+---
+
+## TECH STACK
+- Next.js 14 (App Router)
+- Tailwind CSS
+- Supabase (database + auth for admin login)
+- Deploy on Vercel
+
+---
+
+## DATABASE SCHEMA
+
+Create these two tables in Supabase:
+
+### Table: sessions
+- id: uuid, primary key, default gen_random_uuid()
+- participant_name: text, not null
+- started_at: timestamp with time zone, default now()
+- completed_at: timestamp with time zone, nullable
+- score: integer, nullable (server-calculated only)
+- total_time_seconds: integer, nullable
+- is_complete: boolean, default false
+- position: integer, nullable (1, 2, or 3 — updated after each submission)
+
+### Table: answers
+- id: uuid, primary key, default gen_random_uuid()
+- session_id: uuid, foreign key → sessions.id
+- question_number: integer, not null
+- question_text: text, not null
+- selected_answer: text, nullable (null if timer ran out)
+- correct_answer: text, not null
+- is_correct: boolean, default false
+- answered_at: timestamp with time zone, default now()
+
+### Supabase Row Level Security (RLS)
+Enable RLS on both tables.
+
+sessions policies:
+- INSERT: allow for anon (participants can create their own session)
+- SELECT: allow for authenticated only (admin can read all)
+- UPDATE: allow for authenticated only (server updates score/position)
+
+answers policies:
+- INSERT: allow for anon (participants can insert answers)
+- SELECT: allow for authenticated only (admin can read all)
+
+---
+
+## QUIZ FLOW — PARTICIPANT SIDE
+
+### Screen 1: Welcome Page (/)
+- Display church logo at top
+- Church name: "CGMI Church Plus"
+- Subtitle: "Anniversary Quiz"
+- Tagline: "Changed by God's Word to Change Our World"
+- Large button: "Start Quiz →"
+- Navy background (#0A1628), gold accents (#D4AF37)
+
+### Screen 2: Name Entry
+- Heading: "What is your name?"
+- Single text input, large, centered
+- Placeholder: "Enter your full name"
+- Button: "Begin Quiz →"
+- On submit:
+  - Validate name is not empty
+  - Call POST /api/start-session with { participant_name }
+  - Server creates a session row, returns session_id
+  - Store session_id in React state (not localStorage)
+  - Navigate to first question
+
+### Screens 3–22: Questions (one per screen)
+- Progress bar at very top: "Question X of 20" with filled bar
+- Countdown timer below progress bar: starts at 0:40, counts down
+- Timer text turns red and pulses (CSS animation) when under 10 seconds
+- Question text: large, centered, readable
+- 4 answer options displayed as large tappable buttons
+  - Min height: 56px
+  - Full width on mobile
+  - Navy border, white background by default
+  - On tap: highlight selected option in gold, disable all other options
+  - Do NOT reveal correct/wrong answer yet (that happens in review)
+- On option selected:
+  - Call POST /api/submit-answer immediately with:
+    { session_id, question_number, question_text, selected_answer, correct_answer }
+  - Server calculates is_correct and saves to answers table
+  - Wait 1.5 seconds then auto-advance to next question
+- If timer hits 0:00:
+  - Call POST /api/submit-answer with selected_answer: null, is_correct: false
+  - Show brief "Time's up!" flash
+  - Auto-advance after 1 second
+- Disable browser back button: use router.replace not router.push,
+  and add a beforeunload warning
+- No skipping forward or backward between questions
+
+### Screen 23: Quiz Complete (/quiz/done)
+- On reaching this screen: call POST /api/complete-quiz with { session_id }
+- Server calculates final score, total_time_seconds, updates session,
+  recalculates positions for all completed sessions
+- Display:
+  - Checkmark animation
+  - "You're done! 🎉"
+  - Participant's name
+  - "Your answers have been submitted."
+  - "Stay tuned — results will be announced shortly!"
+- Do NOT show their score here
+
+---
+
+## WINNER / RANKING LOGIC — SERVER SIDE ONLY
+
+In /api/complete-quiz:
+
+1. Calculate score by counting is_correct = true in answers table 
+   for this session_id
+2. Calculate total_time_seconds = completed_at - started_at
+3. Update sessions row: score, total_time_seconds, is_complete = true, 
+   completed_at = now()
+4. Re-rank ALL completed sessions:
+   - ORDER BY score DESC, total_time_seconds ASC
+   - Assign position = 1 to highest scorer (fastest if tied on score)
+   - Assign position = 2 to next
+   - Assign position = 3 to next
+   - If two participants have identical score AND identical time, 
+     they share the same position number
+5. Update position column for all completed sessions
+
+Rules:
+- No minimum score required — there is ALWAYS a winner
+- 80% (16/20) is a "Gold Achiever" badge only, not a requirement
+- Score is NEVER sent from frontend — only raw answers are submitted
+- Rankings update live every time someone completes the quiz
+
+---
+
+## ADMIN DASHBOARD — /admin
+
+### Login Page (/admin/login)
+- Simple email + password form
+- Uses Supabase Auth (signInWithPassword)
+- On success: redirect to /admin/dashboard
+- On fail: show "Invalid credentials"
+- No public signup — admin account is pre-created in Supabase dashboard
+
+### Route Guard
+- /admin/dashboard checks for active Supabase session server-side
+- If not authenticated: redirect to /admin/login
+- Wrap in middleware.ts using Supabase auth helpers
+
+### Dashboard Page (/admin/dashboard)
+- Subscribe to Supabase Realtime on the sessions table
+- Auto-updates live as participants complete the quiz
+- Show a manual "Refresh" button as fallback
+
+#### SECTION 1: Stats Bar (top of page)
+Four stat cards in a row:
+- Total Participants (count of all sessions)
+- Completed (is_complete = true)
+- In Progress (is_complete = false)
+- Gold Achievers (score >= 16)
+
+#### SECTION 2: Podium — Top 3 Winners
+Visual podium layout (2nd | 1st | 3rd from left to right):
+
+  [2nd Place]      [1st Place]      [3rd Place]
+  Silver bg        Gold bg          Bronze bg
+  Name             Name             Name
+  Score: X/20      Score: X/20      Score: X/20
+  Time: Xm Xs      Time: Xm Xs      Time: Xm Xs
+  ⭐ Gold Achiever  ⭐ Gold Achiever
+
+- 1st place card is taller/larger (like a real podium)
+- ⭐ Gold Achiever badge only shows if score >= 16
+- If position slot is empty: show "Waiting..." placeholder card
+- Colors: 
+  - 1st: #D4AF37 (gold) background
+  - 2nd: #C0C0C0 (silver) background  
+  - 3rd: #CD7F32 (bronze) background
+
+#### SECTION 3: Full Leaderboard Table
+Columns: Rank | Name | Score (/20) | Time | Gold Achiever | Status
+
+- Sorted: score DESC, total_time_seconds ASC
+- Top 3 rows: gold / silver / bronze left border or row tint
+- Gold Achiever: ⭐ if score >= 16, blank otherwise
+- Status: "✅ Completed" or "⏳ In Progress (Q X of 20)"
+- For in-progress participants, show current question number if available
+- Clicking a row expands the Review section for that participant
+
+#### SECTION 4: Review & Corrections
+- Accordion list of all COMPLETED participants
+- Click participant name to expand their answer sheet
+- For each of the 20 questions show:
+  - Question number and text
+  - Their answer: highlighted GREEN if correct, RED if wrong
+  - Correct answer: always shown in green below their answer
+  - "No answer (timed out)" shown in grey if they ran out of time
+- This section is used for the live review/correction segment 
+  after the quiz where answers are gone through publicly
+
+---
+
+## THE 20 QUIZ QUESTIONS
+Store in /lib/questions.ts:
+
+export const questions = [
+  {
+    id: 1,
+    question: "What is the full name of Church Plus?",
+    options: [
+      "Church of God Mission International Church Plus",
+      "Christ Apostolic Mission Church Plus",
+      "Church of God Ministry International Church Plus",
+      "Christ Gospel Mission International Church Plus"
+    ],
+    correct: "Church of God Mission International Church Plus"
+  },
+  {
+    id: 2,
+    question: "Who founded Church Plus?",
+    options: [
+      "Rev. Dr. Carl Umakhihe",
+      "Rev. Emmanuel Ubamadu",
+      "Archbishop Benson Idahosa",
+      "Rev. Osas Oghogho"
+    ],
+    correct: "Rev. Emmanuel Ubamadu"
+  },
+  {
+    id: 3,
+    question: "What year was Church Plus founded?",
+    options: ["2005", "2008", "2011", "2015"],
+    correct: "2008"
+  },
+  {
+    id: 4,
+    question: "Who is the current Senior Reverend of Church Plus?",
+    options: [
+      "Rev. Fidelis Okhuomaruyi",
+      "Rev. Mrs. Eki Aighiobayi",
+      "Rev. Dr. Carl Umakhihe",
+      "Rev. Osas Oghogho"
+    ],
+    correct: "Rev. Dr. Carl Umakhihe"
+  },
+  {
+    id: 5,
+    question: "What year did Rev. Dr. Carl Umakhihe take over the vision of Church Plus?",
+    options: ["2015", "2018", "2020", "2022"],
+    correct: "2020"
+  },
+  {
+    id: 6,
+    question: "What is the tagline of Church Plus?",
+    options: [
+      "Built on Faith, Standing on Grace",
+      "Changed by God's Word to Change Our World",
+      "Rooted in Christ, Growing in Love",
+      "Serving God with Excellence"
+    ],
+    correct: "Changed by God's Word to Change Our World"
+  },
+  {
+    id: 7,
+    question: "What is the Mission Statement of Church Plus?",
+    options: [
+      "To build people into global leaders",
+      "To spread the gospel and develop women leaders rooted in Christ",
+      "To serve the community through medical missions",
+      "To raise an army for the gospel to all nations"
+    ],
+    correct: "To spread the gospel and develop women leaders rooted in Christ"
+  },
+  {
+    id: 8,
+    question: "What is the Vision Statement of Church Plus?",
+    options: [
+      "Spreading the gospel to all nations",
+      "Building people into leadership with a global passion, deeply rooted in Christ",
+      "Developing women leaders in the church",
+      "Creating a community of love and compassion"
+    ],
+    correct: "Building people into leadership with a global passion, deeply rooted in Christ"
+  },
+  {
+    id: 9,
+    question: "Who founded Church of God Mission International (CGMi)?",
+    options: [
+      "Rev. Emmanuel Ubamadu",
+      "Archbishop Margaret Idahosa",
+      "Archbishop Benson Idahosa",
+      "Rev. Dr. Carl Umakhihe"
+    ],
+    correct: "Archbishop Benson Idahosa"
+  },
+  {
+    id: 10,
+    question: "What was CGMi originally called when it started in 1962?",
+    options: [
+      "Grace Fellowship",
+      "Calvary Fellowship",
+      "Gospel Mission International",
+      "Church of God Assembly"
+    ],
+    correct: "Calvary Fellowship"
+  },
+  {
+    id: 11,
+    question: "What is the CGMi motto?",
+    options: [
+      "Faith and Excellence in All Things",
+      "Love God, Love People",
+      "Evangelism our Supreme Task",
+      "Going to the Nations with Grace"
+    ],
+    correct: "Evangelism our Supreme Task"
+  },
+  {
+    id: 12,
+    question: "What is the address of Church Plus?",
+    options: [
+      "No 45, Ugbowo Road, Benin City",
+      "No 154, Siloko Road, Benin City",
+      "No 12, Airport Road, Benin City",
+      "No 7, Sapele Road, Benin City"
+    ],
+    correct: "No 154, Siloko Road, Benin City"
+  },
+  {
+    id: 13,
+    question: "What time does the Sunday service hold?",
+    options: ["6am – 8am", "8am – 10am", "9am – 11am", "10am – 12pm"],
+    correct: "8am – 10am"
+  },
+  {
+    id: 14,
+    question: "What day and time is Bible Study held?",
+    options: [
+      "Tuesday at 5pm",
+      "Thursday at 6pm",
+      "Wednesday at 5pm",
+      "Friday at 7pm"
+    ],
+    correct: "Wednesday at 5pm"
+  },
+  {
+    id: 15,
+    question: "When is Fasting and Prayer held?",
+    options: [
+      "Every last week of the month, 6am – 6pm",
+      "Every first week of the month, 6am – 6pm",
+      "Every second Saturday, all day",
+      "Every Sunday, 6am – 9am"
+    ],
+    correct: "Every first week of the month, 6am – 6pm"
+  },
+  {
+    id: 16,
+    question: "What is Variety Sunday?",
+    options: [
+      "A special Sunday held every first Sunday of the month",
+      "A special Sunday held every last Sunday of the month",
+      "A monthly outreach Sunday",
+      "A Sunday dedicated to children's ministry"
+    ],
+    correct: "A special Sunday held every last Sunday of the month"
+  },
+  {
+    id: 17,
+    question: "Who is the Assistant Reverend of Church Plus?",
+    options: [
+      "Rev. Fidelis Okhuomaruyi",
+      "Rev. Mrs. Osaheni",
+      "Rev. Osas Oghogho",
+      "Rev. Mrs. Eki Aighiobayi"
+    ],
+    correct: "Rev. Osas Oghogho"
+  },
+  {
+    id: 18,
+    question: "Who is the Head of Accounting at Church Plus?",
+    options: [
+      "Rev. Fidelis Okhuomaruyi",
+      "Rev. Mrs. Eki Aighiobayi",
+      "Rev. Osas Oghogho",
+      "Rev. Mrs. Osaheni"
+    ],
+    correct: "Rev. Fidelis Okhuomaruyi"
+  },
+  {
+    id: 19,
+    question: "What community outreach project has Church Plus carried out?",
+    options: [
+      "Outreach for Oguta Village",
+      "Outreach for Igumomo Village",
+      "Outreach for Sapele Community",
+      "Outreach for Ugbowo Market"
+    ],
+    correct: "Outreach for Igumomo Village"
+  },
+  {
+    id: 20,
+    question: "What is the anniversary theme for this year?",
+    options: [
+      "Rooted in faith, walking in love",
+      "Called to serve, sent to win souls",
+      "Growing together in grace and truth",
+      "Built by grace sustained by glory"
+    ],
+    correct: "Built by grace sustained by glory"
+  }
+]
+
+NOTE: 40 seconds per question (timer turns red under 10 seconds).
+
+---
+
+## API ROUTES
+
+### POST /api/start-session
+Request body: { participant_name: string }
+- Insert row into sessions table with participant_name and started_at
+- Return: { session_id: string }
+
+### POST /api/submit-answer
+Request body: {
+  session_id: string,
+  question_number: number,
+  question_text: string,
+  selected_answer: string | null,
+  correct_answer: string
+}
+- Calculate is_correct = (selected_answer === correct_answer)
+- Insert row into answers table
+- Return: { success: true }
+
+### POST /api/complete-quiz
+Request body: { session_id: string }
+- Count is_correct = true answers for this session → score
+- Calculate total_time_seconds from started_at to now()
+- Update session: score, total_time_seconds, is_complete = true, 
+  completed_at = now()
+- Re-rank all completed sessions:
+  SELECT * FROM sessions WHERE is_complete = true 
+  ORDER BY score DESC, total_time_seconds ASC
+  Assign position 1, 2, 3 to top three rows
+  UPDATE each session's position column
+- Return: { success: true, score: number }
+
+---
+
+## FILE STRUCTURE
+
+/app
+  /page.tsx                      ← Welcome screen
+  /quiz
+    /page.tsx                    ← Name entry + all 20 questions (single page, 
+                                    question index managed in React state)
+    /done
+      /page.tsx                  ← Completion screen
+  /admin
+    /page.tsx                    ← Redirect guard (to login or dashboard)
+    /login
+      /page.tsx                  ← Admin login form
+    /dashboard
+      /page.tsx                  ← Full admin dashboard
+  /api
+    /start-session
+      /route.ts
+    /submit-answer
+      /route.ts
+    /complete-quiz
+      /route.ts
+
+/lib
+  /supabase.ts                   ← Supabase client (anon + service role)
+  /questions.ts                  ← All 20 questions — edit here before event
+
+/components
+  /QuestionCard.tsx              ← Single question screen with options
+  /Timer.tsx                     ← 2-minute countdown, turns red under 30s
+  /ProgressBar.tsx               ← "Question X of 20" with filled bar
+  /Podium.tsx                    ← Gold/Silver/Bronze podium display
+  /Leaderboard.tsx               ← Full ranked table
+  /ParticipantDetail.tsx         ← Expandable answer review per participant
+  /StatsBar.tsx                  ← Total / Completed / In Progress / Gold stats
+
+/middleware.ts                   ← Protects /admin routes using Supabase auth
+
+---
+
+## DESIGN SYSTEM
+- Primary background: #0A1628 (deep navy)
+- Accent: #D4AF37 (gold)
+- Text on dark: #FFFFFF
+- Text on light: #0A1628
+- Success/correct: #22C55E (green)
+- Error/wrong: #EF4444 (red)
+- Font: Inter or Poppins from Google Fonts
+- Mobile-first: max-width 480px for quiz screens, centered
+- Option buttons: min-height 56px, rounded-xl, full width
+- All transitions: 300ms ease-in-out
+- Timer pulse animation: scale(1) → scale(1.05) → scale(1), 
+  repeat every 1s when under 30 seconds
+
+---
+
+## ENVIRONMENT VARIABLES (.env.local)
+Copy `.env.local.example` to `.env.local` and fill in values from
+Supabase → Project Settings → API. Never commit `.env.local`.
+
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+The service role key is used ONLY in server-side API routes 
+(never exposed to the browser).
+
+---
+
+## SECURITY & ANTI-CHEAT RULES
+1. Score is calculated server-side ONLY — frontend never sends a score
+2. Answers are submitted one at a time as the participant goes 
+   (not all at once at the end — prevents bulk manipulation)
+3. Timer is enforced: if completed_at - started_at is under 
+   (question_count × 5 seconds), flag the session in the dashboard 
+   with a ⚠️ warning icon — admin can investigate before announcing winner
+4. Browser back button disabled on quiz pages using router.replace 
+   and a window beforeunload event listener
+5. Options disabled immediately on selection — no double submitting
+6. Each session has a unique UUID — cannot reuse someone else's session
+7. Admin dashboard fully protected by Supabase Auth middleware
+8. RLS ensures participants can never read other participants' data
