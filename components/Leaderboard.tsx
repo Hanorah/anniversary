@@ -76,15 +76,19 @@ export default function Leaderboard({
                 } ${selectedId === row.id ? "bg-white/10" : ""} ${rowAccent(row.position)}`}
               >
                 <td className="px-4 py-3 font-medium">
-                  {row.suspicious && "?? "}
+                  {row.suspicious && "⚠️ "}
                   {rank}
                 </td>
                 <td className="px-4 py-3 font-medium">{row.participant_name}</td>
                 <td className="px-4 py-3">
-                  {row.is_complete ? `${row.score ?? 0}/20` : "-"}
+                  {row.is_complete
+                    ? `${row.score ?? 0}/20`
+                    : row.answerCount > 0
+                      ? "In progress"
+                      : "—"}
                 </td>
                 <td className="px-4 py-3">{formatTime(row.total_time_seconds)}</td>
-                <td className="px-4 py-3">{(row.score ?? 0) >= 16 ? "?" : ""}</td>
+                <td className="px-4 py-3">{(row.score ?? 0) >= 16 ? "⭐" : ""}</td>
                 <td className="px-4 py-3">{status}</td>
               </tr>
             );

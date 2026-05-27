@@ -1,7 +1,11 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import AllParticipants, {
+  type ParticipantRow,
+} from "@/components/AllParticipants";
 import CorrectAnswersList from "@/components/CorrectAnswersList";
 import Leaderboard, { type LeaderboardRow } from "@/components/Leaderboard";
 import Podium, { type PodiumEntry } from "@/components/Podium";
@@ -32,14 +36,21 @@ function toCountdown(seconds: number) {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [answerCounts, setAnswerCounts] = useState<Record<string, number>>({});
+  const [liveScores, setLiveScores] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [nowMs, setNowMs] = useState(Date.now());
   const [rankingsFinalized, setRankingsFinalized] = useState(false);
 
+  useEffect(() => {
+    setSupabase(createSupabaseBrowserClient());
+  }, []);
+
   const loadData = useCallback(async () => {
+    if (!supabase) return;
+
     const { data: sessionData, error: sessionError } = await supabase
       .from("sessions")
       .select("*")
@@ -56,21 +67,28 @@ export default function AdminDashboard() {
 
     const { data: answerData, error: answerError } = await supabase
       .from("answers")
-      .select("session_id");
+      .select("session_id, is_correct");
 
     if (!answerError && answerData) {
       const counts: Record<string, number> = {};
+      const correct: Record<string, number> = {};
       for (const row of answerData) {
         const sid = row.session_id as string;
         counts[sid] = (counts[sid] ?? 0) + 1;
+        if (row.is_correct) {
+          correct[sid] = (correct[sid] ?? 0) + 1;
+        }
       }
       setAnswerCounts(counts);
+      setLiveScores(correct);
     }
 
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
+    if (!supabase) return;
+
     loadData();
 
     const channel = supabase
@@ -135,7 +153,7 @@ export default function AdminDashboard() {
   }, [rankingLocked, quizStarted, rankingsFinalized, loadData]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     router.replace("/admin/login");
   };
 
@@ -158,6 +176,24 @@ export default function AdminDashboard() {
       }
     }
   }
+
+  const allParticipantRows: ParticipantRow[] = [...sessions]
+    .sort((a, b) => {
+      if (a.is_complete !== b.is_complete) return a.is_complete ? -1 : 1;
+      const scoreA = a.is_complete ? (a.score ?? 0) : (liveScores[a.id] ?? 0);
+      const scoreB = b.is_complete ? (b.score ?? 0) : (liveScores[b.id] ?? 0);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      return a.participant_name.localeCompare(b.participant_name);
+    })
+    .map((s) => ({
+      id: s.id,
+      name: s.participant_name,
+      score: s.score,
+      liveScore: liveScores[s.id] ?? 0,
+      total_time_seconds: s.total_time_seconds,
+      is_complete: s.is_complete,
+      answerCount: answerCounts[s.id] ?? 0,
+    }));
 
   const leaderboardRows: LeaderboardRow[] = sessions.map((s) => ({
     id: s.id,
@@ -255,7 +291,20 @@ export default function AdminDashboard() {
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-md">
-          <h2 className="mb-4 text-xl font-semibold text-white">Leaderboard</h2>
+          <h2 className="mb-1 text-xl font-semibold text-white">
+            All Participants
+          </h2>
+          <p className="mb-4 text-sm text-blue-100/70">
+            Everyone who joined — including those still taking the quiz or outside
+            the top 3.
+          </p>
+          <AllParticipants rows={allParticipantRows} />
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-md">
+          <h2 className="mb-4 text-xl font-semibold text-white">
+            Ranked Leaderboard
+          </h2>
           <Leaderboard rows={leaderboardRows} rankingLocked={rankingLocked} />
         </section>
 
