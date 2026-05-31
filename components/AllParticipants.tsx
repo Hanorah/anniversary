@@ -1,5 +1,6 @@
 "use client";
 
+import { TOTAL_QUESTIONS } from "@/lib/constants";
 import { formatTime } from "@/lib/format";
 
 export type ParticipantRow = {
@@ -38,16 +39,16 @@ export default function AllParticipants({ rows }: AllParticipantsProps) {
         <tbody>
           {rows.map((row, index) => {
             const displayScore = row.is_complete
-              ? `${row.score ?? 0}/20`
+              ? `${row.score ?? 0}/${TOTAL_QUESTIONS}`
               : row.liveScore > 0
-                ? `${row.liveScore}/20 (so far)`
+                ? `${row.liveScore}/${TOTAL_QUESTIONS} (so far)`
                 : row.answerCount > 0
-                  ? `0/20 (Q ${row.answerCount})`
+                  ? `0/${TOTAL_QUESTIONS} (Q ${row.answerCount})`
                   : "—";
 
             const status = row.is_complete
               ? "Completed"
-              : `In progress · Q ${Math.min(row.answerCount + 1, 20)} of 20`;
+              : `In progress · Q ${Math.min(row.answerCount + 1, TOTAL_QUESTIONS)} of ${TOTAL_QUESTIONS}`;
 
             return (
               <tr

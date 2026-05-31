@@ -29,7 +29,7 @@ export default function WelcomePage() {
           Start Quiz →
         </Link>
         <p className="mt-4 text-xs text-slate-400">
-          20 questions · 20 seconds each
+          19 questions · 20 seconds each
         </p>
       </div>
     </QuizLayout>

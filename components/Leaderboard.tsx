@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { TOTAL_QUESTIONS } from "@/lib/constants";
 import { formatTime } from "@/lib/format";
 
 export type LeaderboardRow = {
@@ -65,7 +66,7 @@ export default function Leaderboard({
 
             const status = row.is_complete
               ? "Completed"
-              : `In Progress (Q ${Math.min(row.answerCount + 1, 20)} of 20)`;
+              : `In Progress (Q ${Math.min(row.answerCount + 1, TOTAL_QUESTIONS)} of ${TOTAL_QUESTIONS})`;
 
             return (
               <tr
@@ -82,7 +83,7 @@ export default function Leaderboard({
                 <td className="px-4 py-3 font-medium">{row.participant_name}</td>
                 <td className="px-4 py-3">
                   {row.is_complete
-                    ? `${row.score ?? 0}/20`
+                    ? `${row.score ?? 0}/${TOTAL_QUESTIONS}`
                     : row.answerCount > 0
                       ? "In progress"
                       : "—"}

@@ -36,9 +36,9 @@ export const questions: Question[] = [
   },
   {
     id: 4,
-    question: "Who is the current Senior Reverend of Church Plus?",
+    question: "Who is the current Senior Pastor of Church Plus?",
     options: [
-      "Rev. Fidelis Okhuomaruyi",
+      "Pst Imoghome Umakhihe",
       "Rev. Mrs. Eki Aighiobayi",
       "Rev. Dr. Carl Umakhihe",
       "Rev. Osas Oghogho",
@@ -49,7 +49,7 @@ export const questions: Question[] = [
     id: 5,
     question:
       "What year did Rev. Dr. Carl Umakhihe take over the vision of Church Plus?",
-    options: ["2015", "2018", "2020", "2022"],
+    options: ["2021", "2018", "2020", "2022"],
     correct: "2020",
   },
   {
@@ -124,11 +124,11 @@ export const questions: Question[] = [
     question: "What is the address of Church Plus?",
     options: [
       "No 45, Ugbowo Road, Benin City",
-      "No 154, Siloko Road, Benin City",
+      "No 154, Siluko Road, Benin City",
       "No 12, Airport Road, Benin City",
       "No 7, Sapele Road, Benin City",
     ],
-    correct: "No 154, Siloko Road, Benin City",
+    correct: "No 154, Siluko Road, Benin City",
   },
   {
     id: 13,
@@ -143,7 +143,7 @@ export const questions: Question[] = [
       "Tuesday at 5pm",
       "Thursday at 6pm",
       "Wednesday at 5pm",
-      "Friday at 7pm",
+      "Friday at 7am",
     ],
     correct: "Wednesday at 5pm",
   },
@@ -151,12 +151,12 @@ export const questions: Question[] = [
     id: 15,
     question: "When is Fasting and Prayer held?",
     options: [
-      "Every last week of the month, 6am – 6pm",
-      "Every first week of the month, 6am – 6pm",
+      "Every last week of the month,",
+      "Every first week of the month,",
       "Every second Saturday, all day",
-      "Every Sunday, 6am – 9am",
+      "Every Sunday,",
     ],
-    correct: "Every first week of the month, 6am – 6pm",
+    correct: "Every first week of the month,",
   },
   {
     id: 16,
@@ -171,9 +171,9 @@ export const questions: Question[] = [
   },
   {
     id: 17,
-    question: "Who is the Assistant Reverend of Church Plus?",
+    question: "Who is the Assistant pastor of Church Plus?",
     options: [
-      "Rev. Fidelis Okhuomaruyi",
+      "Pst Imoghome Umakhihe",
       "Rev. Mrs. Osaheni",
       "Rev. Osas Oghogho",
       "Rev. Mrs. Eki Aighiobayi",
@@ -184,26 +184,15 @@ export const questions: Question[] = [
     id: 18,
     question: "Who is the Head of Accounting at Church Plus?",
     options: [
-      "Rev. Fidelis Okhuomaruyi",
+      "Mrs Lauretta Okhuomaruyi",
       "Rev. Mrs. Eki Aighiobayi",
       "Rev. Osas Oghogho",
       "Rev. Mrs. Osaheni",
     ],
-    correct: "Rev. Fidelis Okhuomaruyi",
+    correct: "Mrs Lauretta Okhuomaruyi",
   },
   {
     id: 19,
-    question: "What community outreach project has Church Plus carried out?",
-    options: [
-      "Outreach for Oguta Village",
-      "Outreach for Igumomo Village",
-      "Outreach for Sapele Community",
-      "Outreach for Ugbowo Market",
-    ],
-    correct: "Outreach for Igumomo Village",
-  },
-  {
-    id: 20,
     question: "What is the anniversary theme for this year?",
     options: [
       "Rooted in faith, walking in love",

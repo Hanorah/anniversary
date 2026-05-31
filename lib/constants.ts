@@ -4,7 +4,7 @@ export const QUESTION_TIME_SECONDS = 20;
 /** Timer turns red and pulses when remaining seconds are at or below this */
 export const TIMER_WARNING_SECONDS = 5;
 
-export const TOTAL_QUESTIONS = 20;
+export const TOTAL_QUESTIONS = 19;
 
 /** Flag sessions completed faster than question_count × this many seconds */
 export const MIN_SECONDS_PER_QUESTION = 5;

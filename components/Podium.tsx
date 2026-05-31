@@ -1,4 +1,5 @@
-﻿import { formatTime } from "@/lib/format";
+﻿import { TOTAL_QUESTIONS } from "@/lib/constants";
+import { formatTime } from "@/lib/format";
 
 export type PodiumEntry = {
   id: string;
@@ -57,7 +58,7 @@ function PodiumCard({
           <p className="mt-2 text-center text-lg font-bold leading-tight">
             {entry.name}
           </p>
-          <p className="mt-1 text-sm font-medium">Score: {entry.score}/20</p>
+          <p className="mt-1 text-sm font-medium">Score: {entry.score}/{TOTAL_QUESTIONS}</p>
           <p className="text-sm opacity-90">Time: {formatTime(entry.total_time_seconds)}</p>
           {entry.score >= 16 && (
             <p className="mt-2 text-sm font-semibold">? Gold Achiever</p>

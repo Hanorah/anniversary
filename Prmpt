@@ -245,7 +245,7 @@ export const questions = [
     id: 4,
     question: "Who is the current Senior Reverend of Church Plus?",
     options: [
-      "Rev. Fidelis Okhuomaruyi",
+      "Pst Imoghome Umakhihe",
       "Rev. Mrs. Eki Aighiobayi",
       "Rev. Dr. Carl Umakhihe",
       "Rev. Osas Oghogho"
@@ -378,7 +378,7 @@ export const questions = [
     id: 17,
     question: "Who is the Assistant Reverend of Church Plus?",
     options: [
-      "Rev. Fidelis Okhuomaruyi",
+      "Pst Imoghome Umakhihe",
       "Rev. Mrs. Osaheni",
       "Rev. Osas Oghogho",
       "Rev. Mrs. Eki Aighiobayi"
@@ -389,12 +389,12 @@ export const questions = [
     id: 18,
     question: "Who is the Head of Accounting at Church Plus?",
     options: [
-      "Rev. Fidelis Okhuomaruyi",
+      "Pst Imoghome Umakhihe",
       "Rev. Mrs. Eki Aighiobayi",
       "Rev. Osas Oghogho",
       "Rev. Mrs. Osaheni"
     ],
-    correct: "Rev. Fidelis Okhuomaruyi"
+    correct: "Pst Imoghome Umakhihe"
   },
   {
     id: 19,
